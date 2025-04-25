@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tmazek</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <link rel="stylesheet" href="../assets/css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" integrity="sha512-Evv84Mr4kqVGRNSgIGL/F/aIDqQb7xQ2vcrdIwxfjThSH8CSR7PBEakCr51Ck+w+/U6swU2Im1vVX0SVk9ABhg==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css"></script>
+</head>
+<body class="main-content h-screen">
+    <section class="flex items-center justify-center pt-20">
+        <img src="../assets/images/logo.png" alt="Logo de Tmazek" class="w-1/5">
+    </section>
+
+    <section class="flex items-center justify-center py-10 px-72">
+        <form action="" class="flex items-center flex-1">
+            <input type="text" id="search" name="search" class="bg-white py-2 px-4 w-full text-sm text-black placeholder:text-gray-500 outline-none" placeholder="Rechercher la Chanson, l'Album ou l'Artiste ...">
+            <button name="btn-search" class="bg-[#F7941D] py-2 px-4 text-sm cursor-pointer transition-all ease-in-out duration-300 hover:bg-orange-500">Rechercher</button>
+        </form>
+    </section>
+
+    <section id="display-search" class="grid grid-cols-2 gap-5 px-72 h-64 overflow-auto">
+
+    </section>
+
+    <section id="lyrics-div" class="hidden bg-black bg-opacity-70 h-[280px] mx-72 overflow-auto text p-10 text-white font-light">
+        
+    </section>
+
+    <section id="preview-container">
+
+    </section>
+
+    <!-- <div id="preview-player" class="absolute bg-black top-10 right-10 w-max flex flex-col items-center justify-center p-2 gap-3 rounded-md">
+        <img src="http://api.deezer.com/album/14880539/image" alt="Cover" class="cover rounded-md">
+        <audio controls class="w-full h-10 text-black">
+          <source src="http://cdnt-preview.dzcdn.net/api/1/1/f/0/a/0/f0a110b02db34fd1968d862e2aec800d.mp3?hdnea=exp=1745082122~acl=/api/1/1/f/0/a/0/f0a110b02db34fd1968d862e2aec800d.mp3*~data=user_id=0,application_id=42~hmac=3ce5cde7b33afcf8c44d81ae655f22a2e2a7ebd5436dbf21b3e198427a152299" type="audio/mp3">
+          Ton navigateur ne supporte pas l'audio HTML5.
+        </audio>
+        <div class="close-preview flex items-center justify-center absolute top-[-5px] right-[-5px] h-5 w-5 bg-gray-200 rounded-full cursor-pointer" id="close-player">
+            <i class="fa-solid fa-xmark text-xs"></i>
+        </div>
+    </div> -->
+      
+
+    <script src="../assets/js/app.js"></script>
+</body>
+</html>

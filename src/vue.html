@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recherche de Chansons</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.4.0/axios.min.js"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css" rel="stylesheet">
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    /* Styles personnalisés pour l'audio */
+    .custom-audio-player {
+      --player-bg: #8b5cf6;
+      --player-text: white;
+      --player-button: #f3f4f6;
+      --player-button-hover: #e5e7eb;
+      height: 36px;
+      border-radius: 18px;
+      background: var(--player-bg);
+      color: var(--player-text);
+      display: flex;
+      align-items: center;
+      padding: 0 8px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .audio-play-button {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: var(--player-button);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      margin-right: 8px;
+      flex-shrink: 0;
+      color: var(--player-bg);
+      transition: all 0.2s;
+    }
+    
+    .audio-play-button:hover {
+      background: var(--player-button-hover);
+      transform: scale(1.05);
+    }
+    
+    .audio-progress {
+      flex-grow: 1;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.3);
+      border-radius: 2px;
+      position: relative;
+      cursor: pointer;
+    }
+    
+    .audio-progress-bar {
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+      background: white;
+      border-radius: 2px;
+    }
+    
+    .audio-time {
+      font-size: 0.75rem;
+      margin-left: 8px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+    
+    /* Animation pour la barre de recherche */
+    @keyframes gradientBg {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    
+    .search-container {
+      position: relative;
+      z-index: 1;
+    }
+    
+    .search-container::before {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      right: -4px;
+      bottom: -4px;
+      background: linear-gradient(45deg, #c084fc, #8b5cf6, #6366f1, #4f46e5);
+      background-size: 400% 400%;
+      z-index: -1;
+      border-radius: 9999px;
+      animation: gradientBg 3s ease infinite;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    
+    .search-container:focus-within::before {
+      opacity: 1;
+    }
+    
+    /* Effet card hover */
+    .song-card {
+      transition: all 0.3s ease;
+    }
+    
+    .song-card:hover {
+      transform: translateY(-5px);
+    }
+    
+    /* Stylisation de la scrollbar */
+    ::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb {
+      background: #c084fc;
+      border-radius: 4px;
+    }
+    
+    ::-webkit-scrollbar-thumb:hover {
+      background: #a855f7;
+    }
+  </style>
+</head>
+<body class="bg-gradient-to-br from-gray-50 to-gray-100 min-h-screen">
+  <div id="app" class="container mx-auto px-4 py-8">
+    <h1 class="text-4xl font-bold text-center text-purple-700 mb-10">
+      <i class="fas fa-music mr-3"></i>Tmazek Music
+    </h1>
+    
+    <!-- Formulaire de recherche amélioré -->
+    <div class="flex justify-center mb-12">
+      <div class="search-container w-full max-w-2xl">
+        <div class="relative">
+          <input 
+            type="text" 
+            v-model="searchTerm" 
+            @keyup.enter="searchSongs"
+            placeholder="Rechercher une chanson, un artiste, un album..." 
+            class="w-full px-6 py-4 rounded-full border-0 bg-white shadow-lg focus:outline-none text-lg"
+          >
+          <button 
+            @click="searchSongs" 
+            class="absolute right-3 top-1/2 transform -translate-y-1/2 bg-gradient-to-r from-purple-500 to-purple-700 text-white p-3 rounded-full hover:from-purple-600 hover:to-purple-800 transition shadow-md"
+          >
+            <i class="fas fa-search"></i>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Indicateur de chargement -->
+    <div v-if="loading" class="flex justify-center my-10">
+      <div class="loader">
+        <div class="w-16 h-16 border-4 border-purple-600 border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    </div>
+    
+    <!-- Message d'erreur -->
+    <div v-if="error" class="bg-red-100 border-l-4 border-red-500 text-red-700 px-4 py-3 rounded shadow-md mb-6">
+      <div class="flex">
+        <div class="py-1"><i class="fas fa-exclamation-circle mr-3"></i></div>
+        <div>{{ error }}</div>
+      </div>
+    </div>
+
+    <!-- Résultats de recherche -->
+    <div v-if="songs.length > 0" class="mb-10">
+      <h2 class="text-2xl font-semibold text-gray-800 mb-6 flex items-center">
+        <i class="fas fa-compact-disc mr-3 text-purple-600"></i>
+        {{ songs.length }} résultats trouvés
+      </h2>
+      
+      <div class="space-y-4">
+        <!-- Carte de chanson horizontale -->
+        <div v-for="song in songs" :key="song.id" 
+             class="song-card bg-white rounded-xl shadow-md overflow-hidden hover:shadow-xl transition duration-300 flex flex-col md:flex-row">
+          
+          <!-- Image cover plus petite -->
+          <div class="w-full md:w-32 md:h-32 flex-shrink-0">
+            <img :src="song.album.cover_medium || '/api/placeholder/300/300'" :alt="song.album.title" class="w-full h-32 object-cover">
+          </div>
+          
+          <!-- Contenu de la carte -->
+          <div class="p-4 flex-grow flex flex-col justify-between">
+            <div>
+              <div class="flex items-start justify-between">
+                <div>
+                  <h3 class="text-lg font-bold text-gray-900 mb-1">{{ song.title }}</h3>
+                  <p class="text-purple-600 font-medium mb-1">{{ song.artist.name }}</p>
+                  <p class="text-gray-500 text-sm">
+                    <i class="fas fa-compact-disc mr-1"></i>{{ song.album.title }}
+                  </p>
+                </div>
+                
+                <!-- Bouton pour afficher les paroles -->
+                <button 
+                  @click="showLyrics(song)" 
+                  class="ml-2 px-3 py-1 bg-purple-100 text-purple-700 rounded-lg hover:bg-purple-200 transition text-sm flex items-center"
+                >
+                  <i class="fas fa-microphone-alt mr-1"></i> Paroles
+                </button>
+              </div>
+            </div>
+            
+            <!-- Lecteur audio personnalisé -->
+            <div v-if="song.preview" class="mt-3">
+              <div class="custom-audio-player" :id="`player-${song.id}`">
+                <div class="audio-play-button" @click="togglePlay(song.id)">
+                  <i :class="isPlaying[song.id] ? 'fas fa-pause' : 'fas fa-play'"></i>
+                </div>
+                <div class="audio-progress" @click="seek($event, song.id)">
+                  <div class="audio-progress-bar" :style="{width: `${progressPercentage[song.id] || 0}%`}"></div>
+                </div>
+                <div class="audio-time">{{ formatTime(currentTime[song.id] || 0) }}</div>
+              </div>
+              <audio 
+                :id="`audio-${song.id}`" 
+                :src="song.preview" 
+                preload="metadata"
+                @timeupdate="updateProgress(song.id)"
+                @ended="onEnded(song.id)"
+              ></audio>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Message quand aucun résultat -->
+    <div v-if="searchPerformed && songs.length === 0 && !loading" class="text-center py-12 bg-white rounded-xl shadow-md">
+      <i class="fas fa-compact-disc text-5xl text-gray-300 mb-4"></i>
+      <p class="text-gray-500 text-xl">Aucune chanson trouvée pour "{{ searchTerm }}"</p>
+      <p class="text-gray-400 mt-2">Essayez avec d'autres mots-clés</p>
+    </div>
+    
+    <!-- Modal pour afficher les paroles -->
+    <div v-if="showModal" class="fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50 backdrop-filter backdrop-blur-sm">
+      <div class="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-screen overflow-hidden">
+        <div class="flex justify-between items-center p-5 border-b bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+          <div>
+            <h3 class="text-xl font-bold">{{ selectedSong.title }}</h3>
+            <p class="text-purple-200">{{ selectedSong.artist.name }}</p>
+          </div>
+          <button @click="showModal = false" class="text-white hover:text-purple-200 bg-white bg-opacity-20 rounded-full p-2 transition">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        
+        <div class="p-6 overflow-y-auto max-h-96">
+          <!-- Indicateur de chargement des paroles -->
+          <div v-if="loadingLyrics" class="flex flex-col items-center justify-center my-10">
+            <div class="w-12 h-12 border-4 border-purple-600 border-t-transparent rounded-full animate-spin mb-4"></div>
+            <p class="text-purple-600">Chargement des paroles...</p>
+          </div>
+          
+          <!-- Message d'erreur pour les paroles -->
+          <div v-if="lyricsError" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded relative">
+            <i class="fas fa-exclamation-triangle mr-2"></i>{{ lyricsError }}
+          </div>
+          
+          <!-- Affichage des paroles -->
+          <div v-if="lyrics && !loadingLyrics" class="whitespace-pre-line text-gray-700 leading-relaxed">
+            {{ lyrics }}
+          </div>
+        </div>
+        
+        <div class="p-4 border-t bg-gray-50 flex justify-end">
+          <button @click="showModal = false" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition flex items-center">
+            <i class="fas fa-times mr-2"></i>Fermer
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const { createApp, ref, reactive } = Vue;
+    
+    createApp({
+      setup() {
+        const searchTerm = ref('');
+        const songs = ref([]);
+        const loading = ref(false);
+        const error = ref('');
+        const searchPerformed = ref(false);
+        
+        const showModal = ref(false);
+        const selectedSong = ref(null);
+        const lyrics = ref('');
+        const loadingLyrics = ref(false);
+        const lyricsError = ref('');
+        
+        // Pour le lecteur audio personnalisé
+        const isPlaying = reactive({});
+        const currentTime = reactive({});
+        const progressPercentage = reactive({});
+        const audioElements = {};
+        
+        const searchSongs = async () => {
+          if (!searchTerm.value.trim()) return;
+          
+          loading.value = true;
+          error.value = '';
+          songs.value = [];
+          
+          try {
+            const response = await axios.get(`https://api.lyrics.ovh/suggest/${encodeURIComponent(searchTerm.value)}`);
+            songs.value = response.data.data || [];
+            searchPerformed.value = true;
+            
+            // Réinitialiser les états des lecteurs audio
+            songs.value.forEach(song => {
+              isPlaying[song.id] = false;
+              currentTime[song.id] = 0;
+              progressPercentage[song.id] = 0;
+            });
+            
+            // Attendre que le DOM soit mis à jour
+            setTimeout(() => {
+              songs.value.forEach(song => {
+                if (song.preview) {
+                  audioElements[song.id] = document.getElementById(`audio-${song.id}`);
+                }
+              });
+            }, 100);
+            
+          } catch (err) {
+            console.error('Erreur lors de la recherche:', err);
+            error.value = 'Une erreur est survenue lors de la recherche. Veuillez réessayer.';
+          } finally {
+            loading.value = false;
+          }
+        };
+        
+        const showLyrics = async (song) => {
+          selectedSong.value = song;
+          showModal.value = true;
+          loadingLyrics.value = true;
+          lyricsError.value = '';
+          lyrics.value = '';
+          
+          try {
+            const response = await axios.get(`https://api.lyrics.ovh/v1/${encodeURIComponent(song.artist.name)}/${encodeURIComponent(song.title)}`);
+            lyrics.value = response.data.lyrics || 'Paroles non disponibles';
+          } catch (err) {
+            console.error('Erreur lors de la récupération des paroles:', err);
+            lyricsError.value = 'Impossible de récupérer les paroles pour cette chanson.';
+          } finally {
+            loadingLyrics.value = false;
+          }
+        };
+        
+        // Fonctions pour le lecteur audio personnalisé
+        const togglePlay = (songId) => {
+          const audio = audioElements[songId];
+          if (!audio) return;
+          
+          if (isPlaying[songId]) {
+            audio.pause();
+            isPlaying[songId] = false;
+          } else {
+            // Arrêter tous les autres audios en cours
+            Object.keys(isPlaying).forEach(id => {
+              if (id !== songId && isPlaying[id]) {
+                audioElements[id].pause();
+                isPlaying[id] = false;
+              }
+            });
+            
+            audio.play();
+            isPlaying[songId] = true;
+          }
+        };
+        
+        const updateProgress = (songId) => {
+          const audio = audioElements[songId];
+          if (!audio) return;
+          
+          currentTime[songId] = audio.currentTime;
+          progressPercentage[songId] = (audio.currentTime / audio.duration) * 100 || 0;
+        };
+        
+        const seek = (event, songId) => {
+          const audio = audioElements[songId];
+          if (!audio) return;
+          
+          const progressBar = event.currentTarget;
+          const position = event.offsetX / progressBar.offsetWidth;
+          audio.currentTime = position * audio.duration;
+          
+          updateProgress(songId);
+        };
+        
+        const onEnded = (songId) => {
+          isPlaying[songId] = false;
+          currentTime[songId] = 0;
+          progressPercentage[songId] = 0;
+        };
+        
+        const formatTime = (seconds) => {
+          const mins = Math.floor(seconds / 60);
+          const secs = Math.floor(seconds % 60);
+          return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+        };
+        
+        return {
+          searchTerm,
+          songs,
+          loading,
+          error,
+          searchPerformed,
+          showModal,
+          selectedSong,
+          lyrics,
+          loadingLyrics,
+          lyricsError,
+          isPlaying,
+          currentTime,
+          progressPercentage,
+          searchSongs,
+          showLyrics,
+          togglePlay,
+          updateProgress,
+          seek,
+          onEnded,
+          formatTime
+        };
+      }
+    }).mount('#app');
+  </script>
+</body>
+</html>
